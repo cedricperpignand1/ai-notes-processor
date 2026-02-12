@@ -1,0 +1,21 @@
+{
+  "name": "ai-notes-processor",
+  "version": "1.0.0",
+  "description": "Video processing service for ANDCON AI Notes Daily Log",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.7",
+    "openai": "^4.86.0",
+    "zod": "^3.22.4"
+  }
+}
