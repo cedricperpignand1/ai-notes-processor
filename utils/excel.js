@@ -4,6 +4,7 @@ import fs from "fs";
 
 const TEMPLATE_PATH = path.join(process.cwd(), "templates", "SOV_template.xlsx");
 
+// Your existing mapping (rows where line items go)
 const DIVISION_RANGES = {
   "DIV 2": { startRow: 12, endRow: 13 },
   "DIV 3": { startRow: 16, endRow: 19 },
@@ -27,84 +28,62 @@ const DIVISION_RANGES = {
   "DIV 32": { startRow: 92, endRow: 94 },
 };
 
-const SUMMARY_ROWS = {
-  "DIV 1": 7,
-  "DIV 2": 8,
-  "DIV 3": 9,
-  "DIV 4": 10,
-  "DIV 5": 11,
-  "DIV 6": 12,
-  "DIV 7": 13,
-  "DIV 8": 14,
-  "DIV 9": 15,
-  "DIV 10": 16,
-  "DIV 11": 17,
-  "DIV 12": 18,
-  "DIV 13": 19,
-  "DIV 14": 20,
-  "DIV 21": 21,
-  "DIV 22": 22,
-  "DIV 23": 23,
-  "DIV 26": 24,
-  "DIV 27": 25,
-  "DIV 28": 26,
-  "DIV 31": 27,
-  "DIV 32": 28,
-  "DIV 33": 29,
+// Division names (like PDF)
+const DIV_NAMES = {
+  "DIV 1": "GENERAL REQUIREMENTS",
+  "DIV 2": "SITEWORK",
+  "DIV 3": "CONCRETE",
+  "DIV 4": "MASONRY",
+  "DIV 5": "METALS",
+  "DIV 6": "WOODS & PLASTICS",
+  "DIV 7": "THERMAL & MOISTURE PROTECTION",
+  "DIV 8": "OPENINGS",
+  "DIV 9": "FINISHES",
+  "DIV 10": "SPECIALTIES",
+  "DIV 11": "EQUIPMENT",
+  "DIV 12": "FURNISHINGS",
+  "DIV 13": "SPECIAL CONSTRUCTION",
+  "DIV 14": "CONVEYING SYSTEMS",
+  "DIV 21": "FIRE SUPPRESSION",
+  "DIV 22": "PLUMBING",
+  "DIV 23": "HVAC",
+  "DIV 26": "ELECTRICAL",
+  "DIV 27": "TELECOMMUNICATIONS",
+  "DIV 28": "ELECTRONIC SAFETY AND SECURITY",
+  "DIV 31": "EARTHWORK",
+  "DIV 32": "EXTERIOR IMPROVEMENTS",
+  "DIV 33": "UTILITIES",
 };
 
 function moneyFmt() {
   return '"$"#,##0;[Red]-"$"#,##0;"$"-;@';
 }
 
-function setCellBase(cell) {
+function thinBorder() {
+  return {
+    top: { style: "thin", color: { argb: "FFBFBFBF" } },
+    left: { style: "thin", color: { argb: "FFBFBFBF" } },
+    bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+    right: { style: "thin", color: { argb: "FFBFBFBF" } },
+  };
+}
+
+function setBase(cell) {
   cell.font = { name: "Calibri", size: 10 };
   cell.alignment = { vertical: "middle", wrapText: true };
 }
 
-function styleHeaderRow(ws, rowNum, fromCol, toCol) {
-  const row = ws.getRow(rowNum);
-  row.height = 18;
-
-  for (let c = fromCol; c <= toCol; c++) {
-    const cell = row.getCell(c);
-    setCellBase(cell);
-    cell.font = { name: "Calibri", size: 10, bold: true };
-    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEFEF" } };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  }
-}
-
-function borderRow(ws, rowNum, fromCol, toCol) {
-  const row = ws.getRow(rowNum);
-  for (let c = fromCol; c <= toCol; c++) {
-    const cell = row.getCell(c);
-    setCellBase(cell);
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  }
-}
-
 function setupPrint(ws) {
   ws.pageSetup = {
-    paperSize: 1, // 1 = Letter
+    paperSize: 1, // Letter
     orientation: "portrait",
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 1,
     showGridLines: false,
-    margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+    margins: { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.2, footer: 0.2 },
   };
+  ws.views = [{ showGridLines: false }];
 }
 
 function ensureSheet(workbook, name) {
@@ -114,93 +93,175 @@ function ensureSheet(workbook, name) {
   return ws;
 }
 
-function buildMinimalLayout(workbook) {
+function headerBar(ws, rangeA1, text) {
+  ws.mergeCells(rangeA1);
+  const c = ws.getCell(rangeA1.split(":")[0]);
+  c.value = text;
+  c.font = { name: "Calibri", size: 14, bold: true };
+  c.alignment = { horizontal: "left", vertical: "middle" };
+}
+
+function styleTableHeader(ws, rowNum, fromCol, toCol) {
+  const row = ws.getRow(rowNum);
+  row.height = 18;
+  for (let col = fromCol; col <= toCol; col++) {
+    const cell = row.getCell(col);
+    setBase(cell);
+    cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF7A7A7A" } }; // dark gray
+    cell.border = thinBorder();
+  }
+}
+
+function styleRow(ws, rowNum, fromCol, toCol) {
+  const row = ws.getRow(rowNum);
+  row.height = 16;
+  for (let col = fromCol; col <= toCol; col++) {
+    const cell = row.getCell(col);
+    setBase(cell);
+    cell.border = thinBorder();
+  }
+}
+
+function styleDivisionRow(ws, rowNum, fromCol, toCol) {
+  const row = ws.getRow(rowNum);
+  row.height = 16;
+  for (let col = fromCol; col <= toCol; col++) {
+    const cell = row.getCell(col);
+    setBase(cell);
+    cell.font = { name: "Calibri", size: 10, bold: true };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } }; // medium gray
+    cell.border = thinBorder();
+  }
+}
+
+function buildPDFLikeLayout(workbook) {
   const cover = ensureSheet(workbook, "COVER");
   const summary = ensureSheet(workbook, "SUMMARY");
   const genReq = ensureSheet(workbook, "GEN REQ");
   const detailed = ensureSheet(workbook, "DETAILED SOV");
   const alt = ensureSheet(workbook, "ALT EXCLUSIONS");
 
-  // COVER
+  // COVER (simple – your template can do the fancy blocks)
   cover.getColumn("A").width = 2;
   cover.getColumn("B").width = 14;
   cover.getColumn("G").width = 45;
 
-  // SUMMARY
+  // SUMMARY (keep as PDF: has comments)
   summary.columns = [
-    { width: 12 }, // A
-    { width: 36 }, // B
-    { width: 18 }, // C
-    { width: 10 }, // D
-    { width: 12 }, // E
-    { width: 14 }, // F
+    { width: 10 }, // A DIV
+    { width: 38 }, // B Desc
+    { width: 32 }, // C Comments
+    { width: 10 }, // D Qty
+    { width: 12 }, // E Rate
+    { width: 4 },  // F $
+    { width: 14 }, // G Amount
   ];
+  headerBar(summary, "A1:G1", "SUMMARY SOV");
+  summary.getRow(1).height = 26;
 
-  summary.mergeCells("A2:F2");
-  summary.getCell("A2").value = "SUMMARY SOV";
-  summary.getCell("A2").font = { name: "Calibri", size: 14, bold: true };
-  summary.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
-  summary.getRow(2).height = 24;
+  summary.getRow(4).values = ["", "TRADE CODE DESCRIPTIONS", "COMMENTS", "QTY", "RATE", "SUB TOTAL", ""];
+  styleTableHeader(summary, 4, 1, 7);
 
-  summary.getRow(5).values = ["", "", "COMMENTS", "QTY", "RATE", "SUB TOTAL"];
-  styleHeaderRow(summary, 5, 1, 6);
-
-  Object.entries(SUMMARY_ROWS).forEach(([div, r]) => {
+  // Rows like PDF
+  const divList = ["DIV 1","DIV 2","DIV 3","DIV 4","DIV 5","DIV 6","DIV 7","DIV 8","DIV 9","DIV 10","DIV 11","DIV 12","DIV 13","DIV 14","DIV 21","DIV 22","DIV 23","DIV 26","DIV 27","DIV 28","DIV 31","DIV 32","DIV 33"];
+  let r = 5;
+  divList.forEach((div) => {
     summary.getCell(`A${r}`).value = div;
-    summary.getCell(`F${r}`).numFmt = moneyFmt();
-    borderRow(summary, r, 1, 6);
+    summary.getCell(`B${r}`).value = DIV_NAMES[div] || "";
+    summary.getCell(`F${r}`).value = "$";
+    summary.getCell(`G${r}`).value = { formula: "0" }; // will be overwritten by formulas later
+    summary.getCell(`G${r}`).numFmt = moneyFmt();
+    styleRow(summary, r, 1, 7);
+
+    // NIC shading like PDF for some divisions
+    if (["DIV 27","DIV 28","DIV 31","DIV 32","DIV 33"].includes(div)) {
+      summary.getCell(`G${r}`).value = "NIC";
+      summary.getCell(`G${r}`).alignment = { horizontal: "right", vertical: "middle" };
+      summary.getCell(`G${r}`).font = { name: "Calibri", size: 10, bold: true };
+    }
+
+    r++;
   });
 
-  const totalRow = 33;
-  summary.getCell(`E${totalRow}`).value = "TOTAL BUDGET";
-  summary.getCell(`E${totalRow}`).font = { name: "Calibri", size: 11, bold: true };
-  summary.getCell(`F${totalRow}`).numFmt = moneyFmt();
-  summary.getCell(`F${totalRow}`).font = { name: "Calibri", size: 11, bold: true };
-  borderRow(summary, totalRow, 1, 6);
+  // Totals block like PDF
+  const costRow = r + 2;
+  summary.mergeCells(`A${costRow}:E${costRow}`);
+  summary.getCell(`A${costRow}`).value = "TOTAL COST OF CONSTRUCTION";
+  summary.getCell(`F${costRow}`).value = "$";
+  summary.getCell(`G${costRow}`).numFmt = moneyFmt();
+  styleRow(summary, costRow, 1, 7);
 
-  // GEN REQ
+  const feeRow = costRow + 1;
+  summary.mergeCells(`A${feeRow}:D${feeRow}`);
+  summary.getCell(`A${feeRow}`).value = "Contractor Fee";
+  summary.getCell(`E${feeRow}`).value = "0.00%";
+  summary.getCell(`F${feeRow}`).value = "$";
+  summary.getCell(`G${feeRow}`).numFmt = moneyFmt();
+  styleRow(summary, feeRow, 1, 7);
+
+  const totalRow = feeRow + 1;
+  summary.mergeCells(`A${totalRow}:E${totalRow}`);
+  summary.getCell(`A${totalRow}`).value = "TOTAL BUDGET";
+  summary.getCell(`A${totalRow}`).font = { name: "Calibri", size: 11, bold: true };
+  summary.getCell(`F${totalRow}`).value = "$";
+  summary.getCell(`G${totalRow}`).numFmt = moneyFmt();
+  for (let c = 1; c <= 7; c++) {
+    const cell = summary.getRow(totalRow).getCell(c);
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFB7CFDD" } }; // light blue
+    cell.border = thinBorder();
+  }
+
+  // GEN REQ (PDF keeps comments)
   genReq.columns = [
-    { width: 45 }, // A
-    { width: 18 }, // B
-    { width: 10 }, // C
-    { width: 12 }, // D
-    { width: 14 }, // E
+    { width: 6 },  // A (blank like PDF)
+    { width: 44 }, // B Description
+    { width: 34 }, // C Comments
+    { width: 10 }, // D Qty
+    { width: 12 }, // E Rate
+    { width: 4 },  // F $
+    { width: 14 }, // G Amount
   ];
+  headerBar(genReq, "A1:G1", "GENERAL CONDITIONS SUMMARY");
+  genReq.getRow(1).height = 26;
 
-  genReq.mergeCells("A2:E2");
-  genReq.getCell("A2").value = "GENERAL CONDITIONS SUMMARY";
-  genReq.getCell("A2").font = { name: "Calibri", size: 14, bold: true };
-  genReq.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
-  genReq.getRow(2).height = 24;
+  genReq.getRow(4).values = ["", "DESCRIPTION", "COMMENTS", "QTY", "RATE", "SUB TOTAL", ""];
+  styleTableHeader(genReq, 4, 1, 7);
 
-  genReq.getRow(5).values = ["DESCRIPTION", "COMMENTS", "QTY", "RATE", "SUB TOTAL"];
-  styleHeaderRow(genReq, 5, 1, 5);
-
-  // DETAILED SOV
+  // DETAILED SOV — ✅ REMOVE COMMENTS COLUMN (per your request)
+  // Columns like PDF BUT without COMMENTS:
+  // A = DIV, B = DESCRIPTION, C = QTY, D = RATE, E = $, F = SUBTOTAL, G = $, H = DIV TOTAL
   detailed.columns = [
-    { width: 12 }, // A DIV
-    { width: 30 }, // B DESC
-    { width: 18 }, // C COMMENTS
-    { width: 10 }, // D QTY
-    { width: 12 }, // E RATE
-    { width: 14 }, // F SUB TOTAL
-    { width: 14 }, // G DIV TOTAL
+    { width: 8 },  // A DIV
+    { width: 72 }, // B Description (this is where AI scope goes)
+    { width: 10 }, // C Qty
+    { width: 12 }, // D Rate
+    { width: 4 },  // E $
+    { width: 14 }, // F Subtotal
+    { width: 4 },  // G $
+    { width: 14 }, // H Div Total
   ];
 
-  detailed.mergeCells("A2:G2");
-  detailed.getCell("A2").value = "DETAILED SOV";
-  detailed.getCell("A2").font = { name: "Calibri", size: 14, bold: true };
-  detailed.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
-  detailed.getRow(2).height = 24;
+  // Top small title like PDF (left)
+  detailed.getCell("A1").value = "DETAILED SOV";
+  detailed.getCell("A1").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF2F75B5" } };
 
-  detailed.getRow(6).values = ["DIV", "DESCRIPTION", "COMMENTS", "QTY", "RATE", "SUB TOTAL", "DIV TOTAL"];
-  styleHeaderRow(detailed, 6, 1, 7);
+  detailed.getRow(4).values = ["DIVISION", " ", "QTY", "RATE", "SUB TOTAL", "", "DIV TOTAL", ""];
+  styleTableHeader(detailed, 4, 1, 8);
+  // Make header labels match PDF spacing
+  detailed.mergeCells("A4:B4");
+  detailed.mergeCells("E4:F4");
+  detailed.mergeCells("G4:H4");
+  detailed.getCell("A4").value = "DIVISION";
+  detailed.getCell("C4").value = "QTY";
+  detailed.getCell("D4").value = "RATE";
+  detailed.getCell("E4").value = "SUB TOTAL";
+  detailed.getCell("G4").value = "DIV TOTAL";
 
   // ALT EXCLUSIONS
+  headerBar(alt, "A1:H1", "ALT / NOTES / EXCLUSIONS");
   alt.getColumn("A").width = 110;
-  alt.getCell("A2").value = "NOTES / ADD ALTERNATES / EXCLUSIONS";
-  alt.getCell("A2").font = { name: "Calibri", size: 14, bold: true };
-  alt.getRow(2).height = 24;
 }
 
 function sumRangeFormula(wsName, colLetter, startRow, endRow) {
@@ -214,21 +275,23 @@ export async function generateExcel(project, divisions) {
   if (fs.existsSync(TEMPLATE_PATH)) {
     await workbook.xlsx.readFile(TEMPLATE_PATH);
   } else {
-    buildMinimalLayout(workbook);
+    buildPDFLikeLayout(workbook);
   }
 
+  // Ensure all 5 sheets exist (exact names)
   const cover = ensureSheet(workbook, "COVER");
   const summary = ensureSheet(workbook, "SUMMARY");
   const detailed = ensureSheet(workbook, "DETAILED SOV");
   const alt = ensureSheet(workbook, "ALT EXCLUSIONS");
 
-  // COVER
+  // COVER fields
   cover.getCell("G26").value = project?.name || "";
   cover.getCell("G27").value = project?.address || "";
   cover.getCell("G28").value = project?.version || "";
   cover.getCell("G29").value = project?.date || "";
 
-  // DETAILED SOV line items
+  // ✅ Populate DETAILED SOV line items under each division with AI description
+  // Put AI scope in Description column (B). If you want title + scope, we do two lines.
   for (const divData of divisions || []) {
     const range = DIVISION_RANGES[divData.division];
     if (!range) continue;
@@ -239,53 +302,68 @@ export async function generateExcel(project, divisions) {
     items.forEach((item, idx) => {
       const rowNum = range.startRow + idx;
 
+      // A = DIV code
       detailed.getCell(`A${rowNum}`).value = divData.division;
-      detailed.getCell(`B${rowNum}`).value = item?.title || "";
-      detailed.getCell(`C${rowNum}`).value = ""; // comments
 
-      if (typeof item?.qty === "number") detailed.getCell(`D${rowNum}`).value = item.qty;
-      if (typeof item?.rate === "number") detailed.getCell(`E${rowNum}`).value = item.rate;
+      // B = DESCRIPTION (AI output)
+      const aiDesc = (item?.scope || "").trim();
+      const title = (item?.title || "").trim();
 
-      const f = detailed.getCell(`F${rowNum}`);
-      f.numFmt = moneyFmt();
-      f.value = { formula: `IF(OR(D${rowNum}="",E${rowNum}=""),"",D${rowNum}*E${rowNum})` };
+      detailed.getCell(`B${rowNum}`).value = aiDesc
+        ? (title ? `${title}\n${aiDesc}` : aiDesc)
+        : (title || "");
 
-      borderRow(detailed, rowNum, 1, 7);
+      // Qty/Rate if you have them (optional)
+      if (typeof item?.qty === "number") detailed.getCell(`C${rowNum}`).value = item.qty;
+      if (typeof item?.rate === "number") detailed.getCell(`D${rowNum}`).value = item.rate;
+
+      // Subtotal split: E = "$", F = amount
+      detailed.getCell(`E${rowNum}`).value = "$";
+      const sub = detailed.getCell(`F${rowNum}`);
+      sub.numFmt = moneyFmt();
+      sub.value = { formula: `IF(OR(C${rowNum}="",D${rowNum}=""),"",C${rowNum}*D${rowNum})` };
+
+      // Div total split lives at the *end row* of each division block (like PDF)
+      // We'll set it after the loop.
+
+      // Style
+      styleRow(detailed, rowNum, 1, 8);
+      detailed.getCell(`B${rowNum}`).alignment = { wrapText: true, vertical: "top" };
+      detailed.getRow(rowNum).height = 34; // room for 2 lines
     });
 
-    // division total in column G at end row
-    const divTotalCell = detailed.getCell(`G${range.endRow}`);
-    divTotalCell.numFmt = moneyFmt();
-    divTotalCell.font = { name: "Calibri", size: 10, bold: true };
-    divTotalCell.value = sumRangeFormula("DETAILED SOV", "F", range.startRow, range.endRow);
+    // Division total at end row: G="$" H=sum(subtotals)
+    detailed.getCell(`G${range.endRow}`).value = "$";
+    const divTot = detailed.getCell(`H${range.endRow}`);
+    divTot.numFmt = moneyFmt();
+    divTot.font = { name: "Calibri", size: 10, bold: true };
+    divTot.value = sumRangeFormula("DETAILED SOV", "F", range.startRow, range.endRow);
+    styleRow(detailed, range.endRow, 1, 8);
   }
 
-  // SUMMARY totals pull from DETAILED SOV
-  Object.entries(DIVISION_RANGES).forEach(([div, r]) => {
-    const summaryRow = SUMMARY_ROWS[div];
-    if (!summaryRow) return;
+  // ✅ SUMMARY: Pull totals from DETAILED SOV per division
+  // Find each DIV row in SUMMARY and set amount in column G.
+  // (This is simple: scan SUMMARY column A for "DIV X")
+  summary.eachRow((row, rowNumber) => {
+    const div = String(row.getCell(1).value || "").trim();
+    if (!div.startsWith("DIV")) return;
+    const range = DIVISION_RANGES[div];
+    if (!range) return;
 
-    const cell = summary.getCell(`F${summaryRow}`);
-    cell.numFmt = moneyFmt();
-    cell.value = sumRangeFormula("DETAILED SOV", "F", r.startRow, r.endRow);
-    borderRow(summary, summaryRow, 1, 6);
+    // Column F = "$", Column G = amount
+    summary.getCell(`F${rowNumber}`).value = "$";
+    const amt = summary.getCell(`G${rowNumber}`);
+    amt.numFmt = moneyFmt();
+    amt.value = sumRangeFormula("DETAILED SOV", "F", range.startRow, range.endRow);
   });
 
-  // TOTAL BUDGET
-  const totalRow = 33;
-  const divRows = Object.values(SUMMARY_ROWS).sort((a, b) => a - b);
-  const first = divRows[0];
-  const last = divRows[divRows.length - 1];
-  summary.getCell(`F${totalRow}`).numFmt = moneyFmt();
-  summary.getCell(`F${totalRow}`).value = { formula: `SUM(F${first}:F${last})` };
-
-  // ALT EXCLUSIONS block
+  // ALT EXCLUSIONS block text
   alt.getCell("A4").value =
-    "Change Orders resulting in a reduction in scope will be credited back at the cost credited by suppliers/vendors.\n" +
-    "All applicable sales taxes are included.\n" +
-    "Pricing valid for 30 days.\n" +
-    "Note: GC Fee to be added to accepted alternates as necessary.\n" +
-    "Asbestos/hazardous materials survey/abatement is not included.\n";
+    "• Change Orders that reduce scope will be credited at the supplier/vendor credited amount.\n" +
+    "• All applicable sales taxes are included unless noted.\n" +
+    "• Pricing valid for 30 days.\n" +
+    "• Contractor fee applies to accepted alternates unless noted.\n" +
+    "• Hazardous materials/asbestos survey or abatement not included.\n";
   alt.getCell("A4").alignment = { wrapText: true, vertical: "top" };
   alt.getRow(4).height = 160;
 
