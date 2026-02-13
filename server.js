@@ -90,6 +90,14 @@ app.post('/api/ai-notes/process', requireAuth, upload.single('videoFile'), async
   let audioPath = null;
 
   try {
+    // Check FFmpeg availability first
+    if (!req.app.locals.hasFFmpeg) {
+      return res.status(503).json({
+        error: 'FFmpeg not installed on server. Video processing is unavailable.',
+        hint: 'Install FFmpeg or use Render build command: apt-get install -y ffmpeg',
+      });
+    }
+
     // Validate request body
     const { projectName, createdBy } = processSchema.parse(req.body);
 
@@ -226,17 +234,17 @@ async function startupChecks() {
     process.exit(1);
   }
 
-  // Check ffmpeg installation
+  // Check ffmpeg installation (warn, don't crash — AI Estimator doesn't need it)
   const hasFFmpeg = await checkFFmpeg();
   if (!hasFFmpeg) {
-    console.error('❌ FFmpeg not found!');
-    console.error('Please install FFmpeg:');
-    console.error('  Windows: choco install ffmpeg  OR  download from https://ffmpeg.org/');
-    console.error('  macOS:   brew install ffmpeg');
-    console.error('  Linux:   apt install ffmpeg\n');
-    process.exit(1);
+    console.warn('⚠️  FFmpeg not found — video processing (AI Notes) will be unavailable.');
+    console.warn('   AI Estimator will still work.');
+    console.warn('   To enable video: install FFmpeg (apt install ffmpeg / choco install ffmpeg)');
+  } else {
+    console.log('✓ FFmpeg installed');
   }
-  console.log('✓ FFmpeg installed');
+  // Store flag so the /process endpoint can return a clear error
+  app.locals.hasFFmpeg = hasFFmpeg;
 
   // Optional: verify email config (do NOT crash service)
   const emailOk = await verifyEmailConfig();
