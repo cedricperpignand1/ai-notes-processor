@@ -11,20 +11,26 @@ import { requireAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // ─────────────────────────────────────────────
-// Multer — PDF uploads only, 50MB max
+// Constants
 // ─────────────────────────────────────────────
-const TMP_DIR = path.join(process.cwd(), 'tmp');
+const MAX_PDF_MB = parseInt(process.env.MAX_UPLOAD_MB, 10) || 25;
+const MAX_PDF_BYTES = MAX_PDF_MB * 1024 * 1024;
+const ESTIMATOR_TMP_DIR = path.join(process.cwd(), 'tmp', 'estimator');
 
-const upload = multer({
-  dest: TMP_DIR,
-  limits: {
-    fileSize: (parseInt(process.env.MAX_UPLOAD_MB, 10) || 50) * 1024 * 1024,
-  },
+// Tighter JSON body limit for estimator routes (export payload)
+router.use(express.json({ limit: '2mb' }));
+
+// ─────────────────────────────────────────────
+// Multer — PDF uploads only, disk-based, dedicated config
+// ─────────────────────────────────────────────
+const uploadPdf = multer({
+  dest: ESTIMATOR_TMP_DIR,
+  limits: { fileSize: MAX_PDF_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are accepted'));
+      cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', file.fieldname));
     }
   },
 });
@@ -56,63 +62,96 @@ const exportBodySchema = z.object({
 });
 
 // ─────────────────────────────────────────────
+// Helper: delete temp file (silent on ENOENT)
+// ─────────────────────────────────────────────
+async function deleteTempFile(filePath) {
+  if (!filePath) return;
+  try {
+    await fs.unlink(filePath);
+    console.log(`  Cleaned up: ${path.basename(filePath)}`);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn(`  Failed to clean up ${path.basename(filePath)}:`, err.message);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
 // POST /api/ai-estimator/generate
 // ─────────────────────────────────────────────
-router.post('/generate', requireAuth, upload.single('file'), async (req, res) => {
+router.post('/generate', requireAuth, (req, res, next) => {
+  // Wrap multer to catch file-type / size errors as JSON
+  uploadPdf.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'PDF_TOO_LARGE', maxMB: MAX_PDF_MB });
+      }
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({ error: 'INVALID_FILE_TYPE', message: 'Only PDF files are accepted' });
+      }
+      return res.status(400).json({ error: 'UPLOAD_ERROR', message: err.message });
+    }
+    if (err) {
+      return res.status(400).json({ error: 'UPLOAD_ERROR', message: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   let uploadedPath = null;
+  let openaiFileId = null;
 
   try {
+    // ── Validate file present ──
     if (!req.file) {
       return res.status(400).json({ error: 'No PDF file uploaded' });
     }
-
     uploadedPath = req.file.path;
 
-    // Validate project metadata from form fields
+    // ── Validate project metadata ──
     const projectData = generateBodySchema.parse(req.body);
 
-    console.log(`\n📄 AI Estimator — generate`);
-    console.log(`   Project: ${projectData.projectName}`);
-    console.log(`   File: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)} MB)`);
+    const sizeMB = (req.file.size / 1024 / 1024).toFixed(2);
+    console.log(`\nAI Estimator - generate`);
+    console.log(`  Project: ${projectData.projectName}`);
+    console.log(`  File: ${req.file.originalname} (${sizeMB} MB)`);
 
-    // Call OpenAI to generate scope
-    const rawResult = await generateScope(uploadedPath, projectData);
+    // ── Call OpenAI (streams PDF from disk, never loads full file into memory) ──
+    const { result, fileId } = await generateScope(uploadedPath, projectData);
+    openaiFileId = fileId;
 
-    // Sanitize scope to strip any prices/quantities
+    // ── Sanitize scope to strip any leaked prices/quantities ──
     const sanitized = {
-      ...rawResult,
-      divisions: sanitizeDivisions(rawResult.divisions || []),
+      ...result,
+      divisions: sanitizeDivisions(result.divisions || []),
     };
 
-    console.log(`✓ Generated ${sanitized.divisions.length} division(s)\n`);
+    console.log(`  Generated ${sanitized.divisions.length} division(s)`);
 
     return res.json(sanitized);
 
   } catch (error) {
-    console.error('❌ Generate failed:', error.message);
+    console.error('Generate failed:', error.message);
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Validation error', details: error.errors });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', details: error.errors });
     }
 
-    if (error instanceof multer.MulterError) {
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        const limit = process.env.MAX_UPLOAD_MB || 50;
-        return res.status(400).json({ error: `File too large (max ${limit} MB)` });
-      }
-      return res.status(400).json({ error: error.message });
+    // OpenAI-specific errors
+    if (error?.status || error?.code) {
+      return res.status(502).json({
+        error: 'OPENAI_FAILED',
+        message: error.message?.slice(0, 200) || 'OpenAI request failed',
+      });
     }
 
     return res.status(500).json({
-      error: 'Failed to generate scope',
-      message: error.message,
+      error: 'GENERATE_FAILED',
+      message: error.message?.slice(0, 200) || 'Unknown error',
     });
 
   } finally {
-    // Always delete uploaded PDF after processing
-    if (uploadedPath) {
-      try { await fs.unlink(uploadedPath); } catch {}
-    }
+    // CRITICAL: Always delete uploaded PDF — even on success
+    await deleteTempFile(uploadedPath);
   }
 });
 
@@ -123,8 +162,8 @@ router.post('/export', requireAuth, async (req, res) => {
   try {
     const { project, divisions } = exportBodySchema.parse(req.body);
 
-    console.log(`\n📊 AI Estimator — export`);
-    console.log(`   Project: ${project.name}`);
+    console.log(`\nAI Estimator - export`);
+    console.log(`  Project: ${project.name}`);
 
     const xlsxBuffer = await generateExcel(project, divisions);
 
@@ -134,20 +173,20 @@ router.post('/export', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', xlsxBuffer.byteLength);
 
-    console.log(`✓ Export complete: ${filename}\n`);
+    console.log(`  Export complete: ${filename}`);
 
     return res.send(Buffer.from(xlsxBuffer));
 
   } catch (error) {
-    console.error('❌ Export failed:', error.message);
+    console.error('Export failed:', error.message);
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Validation error', details: error.errors });
+      return res.status(400).json({ error: 'VALIDATION_ERROR', details: error.errors });
     }
 
     return res.status(500).json({
-      error: 'Failed to generate Excel',
-      message: error.message,
+      error: 'EXPORT_FAILED',
+      message: error.message?.slice(0, 200) || 'Unknown error',
     });
   }
 });

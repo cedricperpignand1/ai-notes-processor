@@ -34,9 +34,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
-// Ensure tmp directory exists
+// Ensure tmp directories exist
 const TMP_DIR = path.join(process.cwd(), 'tmp');
+const ESTIMATOR_TMP_DIR = path.join(TMP_DIR, 'estimator');
 await fs.mkdir(TMP_DIR, { recursive: true });
+await fs.mkdir(ESTIMATOR_TMP_DIR, { recursive: true });
 
 // Multer configuration for file uploads (300MB limit)
 const upload = multer({

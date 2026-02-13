@@ -97,26 +97,53 @@ Return the JSON schema exactly as specified. No extra keys.`;
 }
 
 /**
+ * Upload PDF to OpenAI via Files API using a read stream (never loads full file into memory).
+ * @param {string} pdfPath - absolute path to the PDF on disk
+ * @returns {Promise<string>} the OpenAI file ID
+ */
+async function uploadPdfToOpenAI(pdfPath) {
+  const fileStream = fs.createReadStream(pdfPath);
+  const file = await openai.files.create({
+    file: fileStream,
+    purpose: 'user_data',
+  });
+  console.log(`  Uploaded to OpenAI: ${file.id} (${file.bytes} bytes)`);
+  return file.id;
+}
+
+/**
+ * Delete a file from OpenAI (best-effort cleanup).
+ * @param {string} fileId
+ */
+async function deleteOpenAIFile(fileId) {
+  if (!fileId) return;
+  try {
+    await openai.files.del(fileId);
+    console.log(`  Deleted OpenAI file: ${fileId}`);
+  } catch (err) {
+    console.warn(`  Failed to delete OpenAI file ${fileId}:`, err.message);
+  }
+}
+
+/**
  * Generate scope of work from a PDF file using OpenAI.
+ * Uses the Files API to stream the PDF from disk — never loads the entire file into memory.
+ *
  * @param {string} pdfPath - absolute path to the uploaded PDF
  * @param {{ projectName, projectAddress, version, date }} projectData
- * @returns {Promise<object>} structured scope JSON
+ * @returns {Promise<{ result: object, fileId: string|null }>} structured scope JSON + file ID for cleanup
  */
 export async function generateScope(pdfPath, projectData) {
   const { projectName, projectAddress, version, date } = projectData;
-
-  // Read PDF as base64
-  const pdfBuffer = fs.readFileSync(pdfPath);
-  const base64Pdf = pdfBuffer.toString('base64');
-
   const systemPrompt = buildSystemPrompt(projectName, projectAddress);
 
-  // Use the OpenAI Responses API which supports direct PDF input
-  // Falls back to chat completions with extracted text if responses API unavailable
+  // Step 1: Stream-upload PDF to OpenAI (memory-safe)
+  const fileId = await uploadPdfToOpenAI(pdfPath);
+
   let result;
 
   try {
-    // Try Responses API (OpenAI SDK ≥ 4.86)
+    // Step 2: Use Responses API with file reference (no base64 in memory)
     const response = await openai.responses.create({
       model: 'gpt-4o',
       input: [
@@ -125,8 +152,7 @@ export async function generateScope(pdfPath, projectData) {
           content: [
             {
               type: 'input_file',
-              filename: path.basename(pdfPath),
-              file_data: `data:application/pdf;base64,${base64Pdf}`,
+              file_id: fileId,
             },
             {
               type: 'input_text',
@@ -147,9 +173,9 @@ export async function generateScope(pdfPath, projectData) {
 
     result = JSON.parse(response.output_text);
   } catch (responsesErr) {
-    // Fallback: Chat Completions API (works with all SDK versions)
-    console.log('Responses API unavailable, falling back to chat completions:', responsesErr.message);
+    console.log('  Responses API failed, trying Chat Completions fallback:', responsesErr.message);
 
+    // Fallback: Chat Completions with file reference
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -161,14 +187,9 @@ export async function generateScope(pdfPath, projectData) {
               type: 'text',
               text: 'Analyze the attached construction plans PDF and generate a structured scope of work.',
             },
-            // Try file content type (SDK ≥ 4.72)
             {
               type: 'file',
-              file: {
-                filename: path.basename(pdfPath),
-                data: base64Pdf,
-                mime_type: 'application/pdf',
-              },
+              file: { file_id: fileId },
             },
           ],
         },
@@ -185,9 +206,12 @@ export async function generateScope(pdfPath, projectData) {
     });
 
     result = JSON.parse(completion.choices[0].message.content);
+  } finally {
+    // Step 3: Delete the uploaded file from OpenAI (best-effort)
+    await deleteOpenAIFile(fileId);
   }
 
-  // Overwrite project fields with the user-provided values (not AI guesses)
+  // Overwrite project fields with user-provided values (not AI guesses)
   result.project = {
     name:    projectName    || result.project?.name    || '',
     address: projectAddress || result.project?.address || '',
@@ -195,5 +219,5 @@ export async function generateScope(pdfPath, projectData) {
     date:    date           || result.project?.date    || new Date().toISOString().split('T')[0],
   };
 
-  return result;
+  return { result, fileId: null }; // fileId already deleted
 }
