@@ -236,15 +236,15 @@ async function startupChecks() {
   }
   console.log('✓ FFmpeg installed');
 
-  // Verify email configuration
+  // Optional: verify email config (do NOT crash service)
   const emailOk = await verifyEmailConfig();
   if (!emailOk) {
-    console.error('❌ Gmail SMTP configuration failed!');
-    console.error('Please check your GMAIL_USER and GMAIL_APP_PASSWORD.');
-    console.error('Note: You need a Gmail App Password, not your regular password.\n');
-    process.exit(1);
+    console.warn('⚠️ Gmail SMTP config failed (will still run AI Estimator).');
+    console.warn('   Email sending may fail until SMTP is fixed.');
+  } else {
+    console.log('✓ Gmail SMTP configured');
   }
-  console.log('✓ Gmail SMTP configured');
+
 
   console.log(`✓ Temp directory: ${TMP_DIR}`);
   console.log(`✓ All checks passed\n`);
