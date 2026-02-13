@@ -30,7 +30,7 @@ const SCOPE_SCHEMA = {
             enum: [
               'DIV 2', 'DIV 3', 'DIV 4', 'DIV 5', 'DIV 6', 'DIV 7',
               'DIV 8', 'DIV 9', 'DIV 10', 'DIV 11', 'DIV 12', 'DIV 13',
-              'DIV 14', 'DIV 21', 'DIV 22', 'DIV 23', 'DIV 26', 'DIV 27', 'DIV 28',
+              'DIV 14', 'DIV 21', 'DIV 22', 'DIV 23', 'DIV 26', 'DIV 27', 'DIV 28', 'DIV 32',
             ],
           },
           items: {
@@ -63,6 +63,7 @@ const DIVISION_CAPACITIES = {
   'DIV 10': 1,  'DIV 11': 2,  'DIV 12': 2,  'DIV 13': 2,
   'DIV 14': 2,  'DIV 21': 2,  'DIV 22': 2,  'DIV 23': 1,
   'DIV 26': 3,  'DIV 27': 2,  'DIV 28': 1,
+  'DIV 32': 3,
 };
 
 function buildSystemPrompt(projectName, projectAddress) {
@@ -81,9 +82,9 @@ Your task: Review the attached construction documents and produce a structured s
 4. DO NOT include totals, subtotals, allowances, or lump sums.
 5. SKIP Division 1 (General Requirements) entirely — it is done manually.
 6. Only list divisions where work is clearly shown or specified in the plans.
-7. Scope points must be concise, factual, plan-based observations.
+7. Each scope point must be DETAILED and DESCRIPTIVE — include materials, locations, methods, and specifications found in the plans. Be thorough, not vague.
 8. If a detail is unclear or not shown, write "Verify in plans".
-9. Scope points must be short phrases (not full sentences).
+9. Provide as many scope points as needed to fully describe the work for each line item. Each point should capture a distinct detail from the plans.
 
 ## DIVISION CAPACITY LIMITS (merge similar items if over capacity):
 ${capacityLines}

@@ -25,6 +25,7 @@ const DIVISION_RANGES = {
   'DIV 26': { startRow: 82, endRow: 84 },
   'DIV 27': { startRow: 86, endRow: 87 },
   'DIV 28': { startRow: 90, endRow: 90 },
+  'DIV 32': { startRow: 92, endRow: 94 },
 };
 
 const TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'SOV_template.xlsx');
