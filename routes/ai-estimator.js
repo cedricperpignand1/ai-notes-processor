@@ -22,9 +22,18 @@ router.use(express.json({ limit: '2mb' }));
 
 // ─────────────────────────────────────────────
 // Multer — PDF uploads only, disk-based, dedicated config
+// Store with .pdf extension so OpenAI / downstream tools recognise the type.
 // ─────────────────────────────────────────────
+const pdfStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, ESTIMATOR_TMP_DIR),
+  filename: (_req, file, cb) => {
+    const safeName = file.originalname.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    cb(null, `${Date.now()}-${safeName}`);
+  },
+});
+
 const uploadPdf = multer({
-  dest: ESTIMATOR_TMP_DIR,
+  storage: pdfStorage,
   limits: { fileSize: MAX_PDF_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
@@ -98,7 +107,6 @@ router.post('/generate', requireAuth, (req, res, next) => {
   });
 }, async (req, res) => {
   let uploadedPath = null;
-  let openaiFileId = null;
 
   try {
     // ── Validate file present ──
@@ -116,8 +124,7 @@ router.post('/generate', requireAuth, (req, res, next) => {
     console.log(`  File: ${req.file.originalname} (${sizeMB} MB)`);
 
     // ── Call OpenAI (streams PDF from disk, never loads full file into memory) ──
-    const { result, fileId } = await generateScope(uploadedPath, projectData);
-    openaiFileId = fileId;
+    const result = await generateScope(uploadedPath, projectData);
 
     // ── Sanitize scope to strip any leaked prices/quantities ──
     const sanitized = {

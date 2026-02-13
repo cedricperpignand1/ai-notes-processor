@@ -1,6 +1,5 @@
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import fs from 'fs';
-import path from 'path';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -98,13 +97,16 @@ Return the JSON schema exactly as specified. No extra keys.`;
 
 /**
  * Upload PDF to OpenAI via Files API using a read stream (never loads full file into memory).
+ * Uses toFile() to attach the correct filename + MIME type so OpenAI recognises it as a PDF.
  * @param {string} pdfPath - absolute path to the PDF on disk
  * @returns {Promise<string>} the OpenAI file ID
  */
 async function uploadPdfToOpenAI(pdfPath) {
-  const fileStream = fs.createReadStream(pdfPath);
+  // Extract the filename that multer saved (e.g. "1707123456-Plans.pdf")
+  const filename = pdfPath.split(/[/\\]/).pop();
+
   const file = await openai.files.create({
-    file: fileStream,
+    file: await toFile(fs.createReadStream(pdfPath), filename, { type: 'application/pdf' }),
     purpose: 'user_data',
   });
   console.log(`  Uploaded to OpenAI: ${file.id} (${file.bytes} bytes)`);
@@ -219,5 +221,5 @@ export async function generateScope(pdfPath, projectData) {
     date:    date           || result.project?.date    || new Date().toISOString().split('T')[0],
   };
 
-  return { result, fileId: null }; // fileId already deleted
+  return result;
 }
