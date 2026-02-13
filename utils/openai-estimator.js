@@ -82,9 +82,16 @@ Your task: Review the attached construction documents and produce a structured s
 4. DO NOT include totals, subtotals, allowances, or lump sums.
 5. SKIP Division 1 (General Requirements) entirely — it is done manually.
 6. Only list divisions where work is clearly shown or specified in the plans.
-7. Each scope point must be DETAILED and DESCRIPTIVE — include materials, locations, methods, and specifications found in the plans. Be thorough, not vague.
+7. Each scope point must be EXTREMELY DETAILED — extract every technical specification you can find in the plans, including:
+   - Model numbers and manufacturer names (e.g. "Carrier 50XC rooftop unit", "Kohler K-5707 sink")
+   - Pipe sizes and types (e.g. "4-inch Schedule 40 PVC", "3/4-inch Type L copper")
+   - Material specs (e.g. "6x6 W2.9xW2.9 WWF", "5000 PSI concrete", "16-gauge steel studs")
+   - Equipment ratings (e.g. "200A 3-phase panel", "2-ton split system")
+   - Dimensions, gauges, thicknesses, and grades when shown
+   - Finish types and colors if specified (e.g. "LVT flooring, Shaw Floorte Pro", "Sherwin-Williams semi-gloss")
+   - Connection types, fasteners, and methods when noted
 8. If a detail is unclear or not shown, write "Verify in plans".
-9. Provide as many scope points as needed to fully describe the work for each line item. Each point should capture a distinct detail from the plans.
+9. Provide as many scope points as needed to fully describe the work for each line item. Every distinct specification, material callout, or technical detail in the plans should be its own scope point. More detail is always better.
 
 ## DIVISION CAPACITY LIMITS (merge similar items if over capacity):
 ${capacityLines}
@@ -205,7 +212,7 @@ export async function generateScope(pdfPath, projectData) {
           schema: SCOPE_SCHEMA,
         },
       },
-      max_tokens: 4096,
+      max_tokens: 16384,
     });
 
     result = JSON.parse(completion.choices[0].message.content);
