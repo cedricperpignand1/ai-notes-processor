@@ -82,16 +82,19 @@ Your task: Review the attached construction documents and produce a structured s
 4. DO NOT include totals, subtotals, allowances, or lump sums.
 5. SKIP Division 1 (General Requirements) entirely — it is done manually.
 6. Only list divisions where work is clearly shown or specified in the plans.
-7. Each scope point must be EXTREMELY DETAILED — extract every technical specification you can find in the plans, including:
-   - Model numbers and manufacturer names (e.g. "Carrier 50XC rooftop unit", "Kohler K-5707 sink")
-   - Pipe sizes and types (e.g. "4-inch Schedule 40 PVC", "3/4-inch Type L copper")
-   - Material specs (e.g. "6x6 W2.9xW2.9 WWF", "5000 PSI concrete", "16-gauge steel studs")
-   - Equipment ratings (e.g. "200A 3-phase panel", "2-ton split system")
-   - Dimensions, gauges, thicknesses, and grades when shown
-   - Finish types and colors if specified (e.g. "LVT flooring, Shaw Floorte Pro", "Sherwin-Williams semi-gloss")
-   - Connection types, fasteners, and methods when noted
+7. Each scope point must be written as a COMPREHENSIVE NARRATIVE PARAGRAPH that describes the FULL SCOPE OF WORK for that item — not just a short bullet or spec callout. Each scope point should read like a complete subcontractor scope description that covers:
+   - What is being installed, furnished, or constructed
+   - How it connects to adjacent systems or structures
+   - Key technical specifications found in the plans: model numbers, manufacturer names, pipe sizes, material specs, equipment ratings, dimensions, gauges, thicknesses, grades, finish types, colors, connection types, fasteners, and methods
+   - Required testing, inspections, flushing, or commissioning
+   - Coordination with other trades (penetrations, chases, sleeves, fire-stopping, backing, blocking)
+   - Any specialty items, accessories, or ancillary work shown on the plans
+
+   EXAMPLE of the level of detail expected for a single scope point (Plumbing):
+   "Install new hot and cold water piping throughout the residence per plans; connect to municipal water service with main shutoff valve and backflow preventer; distribute water to all fixtures including toilets, sinks, showers, tubs, kitchen, and laundry; install water heater(s) complete with safety pan, T&P relief valve, and discharge piping; install sanitary drainage piping underground and above ground, connect to sewer, and provide proper slope, cleanouts, and vent stacks through roof; furnish and install all specified plumbing fixtures with necessary valves, drains, and trim; provide specialty items such as floor drains with trap primers, sump pump, or ejector system if shown; perform pressure tests, flush and sanitize the water system; coordinate with other trades for penetrations and chases, and ensure all required sleeves and fire-stopping are installed."
+
 8. If a detail is unclear or not shown, write "Verify in plans".
-9. Provide as many scope points as needed to fully describe the work for each line item. Every distinct specification, material callout, or technical detail in the plans should be its own scope point. More detail is always better.
+9. Provide as many scope points as needed to fully describe the work for each line item. Each scope point should be a rich, flowing paragraph — not a short phrase. More detail is always better. Cover every aspect of the work: materials, installation methods, connections, testing, and trade coordination.
 
 ## DIVISION CAPACITY LIMITS (merge similar items if over capacity):
 ${capacityLines}
