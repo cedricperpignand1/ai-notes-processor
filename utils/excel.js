@@ -1,4 +1,9 @@
 import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * divisions input expected:
@@ -162,6 +167,13 @@ export async function generateExcel(project, divisions) {
   const wb = new ExcelJS.Workbook();
   wb.creator = "ANDCON AI Estimator";
 
+  // Load logo (best-effort — skip if file is missing)
+  let logoId = null;
+  try {
+    const logoBuffer = fs.readFileSync(path.join(__dirname, '..', 'assets', 'logo.png'));
+    logoId = wb.addImage({ buffer: logoBuffer, extension: 'png' });
+  } catch (_) {}
+
   // 5 Sheets
   const cover = wb.addWorksheet("COVER");
   const summary = wb.addWorksheet("SUMMARY");
@@ -198,6 +210,11 @@ export async function generateExcel(project, divisions) {
   cover.getCell("B45").font = { name: "Calibri", size: 11, italic: true, color: { argb: "FFFFFFFF" } };
   cover.getCell("B45").alignment = { horizontal: "center", vertical: "middle" };
 
+  // Logo — bottom right of cover (rows 48–54, cols H–K)
+  if (logoId !== null) {
+    cover.addImage(logoId, { tl: { col: 7, row: 47 }, br: { col: 11, row: 53 } });
+  }
+
   // ───────────────────────── SUMMARY ─────────────────────────
   summary.columns = [
     { width: 10 }, // A div
@@ -209,6 +226,9 @@ export async function generateExcel(project, divisions) {
   ];
 
   headerBar(summary, 1, 1, 6, "SUMMARY SOV");
+  if (logoId !== null) {
+    summary.addImage(logoId, { tl: { col: 4, row: 0 }, br: { col: 6, row: 3 } });
+  }
   darkHeaderRow(summary, 4, ["DIVISION", "TRADE CODE DESCRIPTIONS", "COMMENTS", "QTY", "RATE", "SUB TOTAL"]);
 
   const summaryStart = 5;
@@ -267,6 +287,9 @@ export async function generateExcel(project, divisions) {
   ];
 
   headerBar(genReq, 1, 1, 5, "GENERAL CONDITIONS SUMMARY");
+  if (logoId !== null) {
+    genReq.addImage(logoId, { tl: { col: 3, row: 0 }, br: { col: 5, row: 3 } });
+  }
   darkHeaderRow(genReq, 4, ["DESCRIPTION", "COMMENTS", "QTY", "RATE", "SUB"]);
 
   let gr = 5;
@@ -306,6 +329,10 @@ export async function generateExcel(project, divisions) {
 
   detailed.getCell("A1").value = "DETAILED SOV";
   detailed.getCell("A1").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF2F75B5" } };
+
+  if (logoId !== null) {
+    detailed.addImage(logoId, { tl: { col: 5, row: 0 }, br: { col: 7, row: 3 } });
+  }
 
   darkHeaderRow(detailed, 4, ["DIVISION", "LINE ITEM", "DESCRIPTION", "QTY", "RATE", "SUB TOTAL", "DIV TOTAL"]);
 
@@ -426,8 +453,12 @@ export async function generateExcel(project, divisions) {
   summary.getCell(summaryTotalRow, 6).value = { formula: `F${summaryCostRow}+F${summaryFeeRow}` };
 
   // ───────────────────────── ALT EXCLUSIONS ─────────────────────────
-  alt.getColumn(1).width = 110;
-  headerBar(alt, 1, 1, 1, "ALT / NOTES / EXCLUSIONS");
+  alt.getColumn(1).width = 88;
+  alt.getColumn(2).width = 22;
+  headerBar(alt, 1, 1, 2, "ALT / NOTES / EXCLUSIONS");
+  if (logoId !== null) {
+    alt.addImage(logoId, { tl: { col: 1, row: 0 }, br: { col: 2, row: 3 } });
+  }
 
   alt.getCell("A4").value =
     "• Change Orders that reduce scope will be credited at the supplier/vendor credited amount.\n" +
