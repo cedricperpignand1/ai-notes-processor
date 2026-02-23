@@ -137,7 +137,7 @@ function fillRange(ws, startRow, startCol, endRow, endCol, argb) {
 }
 
 /**
- * Division band row (light gray) + keep borders
+ * Division band row (light bluish-gray) + keep borders
  */
 function divisionBandRow(ws, rowNum, fromCol, toCol, text) {
   ws.mergeCells(rowNum, fromCol, rowNum, toCol);
@@ -145,13 +145,13 @@ function divisionBandRow(ws, rowNum, fromCol, toCol, text) {
   cell.value = text;
   cell.font = { name: "Calibri", size: 10, bold: true };
   cell.alignment = { horizontal: "left", vertical: "middle" };
-  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
+  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
 
   // Border entire row range
   for (let c = fromCol; c <= toCol; c++) {
     const cc = ws.getCell(rowNum, c);
     baseCell(cc);
-    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
+    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
     cc.border = thinBorder();
   }
 
@@ -324,7 +324,7 @@ export async function generateExcel(project, divisions) {
     // Div total cell (G on band)
     detailed.getCell(dr, 7).numFmt = moneyFmt();
     detailed.getCell(dr, 7).border = thinBorder();
-    detailed.getCell(dr, 7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
+    detailed.getCell(dr, 7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
 
     const bandRow = dr;
     dr++;
@@ -333,7 +333,6 @@ export async function generateExcel(project, divisions) {
 
     const items = Array.isArray(divData.items) ? divData.items : [];
     for (const item of items) {
-      detailed.getCell(dr, 1).value = div;
       detailed.getCell(dr, 2).value = (item?.title || "").trim();
       detailed.getCell(dr, 3).value = (item?.scope || "").trim();
 
@@ -343,10 +342,10 @@ export async function generateExcel(project, divisions) {
       detailed.getCell(dr, 6).numFmt = moneyFmt();
       detailed.getCell(dr, 6).value = { formula: `IF(OR(D${dr}="",E${dr}=""),"",D${dr}*E${dr})` };
 
-      // Div total column blank on line items
+      // Div total column blank on line items (no borders — keeps the column visually open)
       detailed.getCell(dr, 7).value = "";
 
-      applyBorderRow(detailed, dr, 1, 7);
+      applyBorderRow(detailed, dr, 1, 6);
       detailed.getRow(dr).height = 28;
       detailed.getCell(dr, 3).alignment = { wrapText: true, vertical: "top" };
 
