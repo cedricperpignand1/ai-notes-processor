@@ -137,7 +137,7 @@ function fillRange(ws, startRow, startCol, endRow, endCol, argb) {
 }
 
 /**
- * Division band row (light bluish-gray) + keep borders
+ * Division band row (gray) + keep borders
  */
 function divisionBandRow(ws, rowNum, fromCol, toCol, text) {
   ws.mergeCells(rowNum, fromCol, rowNum, toCol);
@@ -145,13 +145,13 @@ function divisionBandRow(ws, rowNum, fromCol, toCol, text) {
   cell.value = text;
   cell.font = { name: "Calibri", size: 10, bold: true };
   cell.alignment = { horizontal: "left", vertical: "middle" };
-  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
+  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
 
   // Border entire row range
   for (let c = fromCol; c <= toCol; c++) {
     const cc = ws.getCell(rowNum, c);
     baseCell(cc);
-    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
+    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
     cc.border = thinBorder();
   }
 
@@ -324,7 +324,7 @@ export async function generateExcel(project, divisions) {
     // Div total cell (G on band)
     detailed.getCell(dr, 7).numFmt = moneyFmt();
     detailed.getCell(dr, 7).border = thinBorder();
-    detailed.getCell(dr, 7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
+    detailed.getCell(dr, 7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD0D0D0" } };
 
     const bandRow = dr;
     dr++;
@@ -346,6 +346,12 @@ export async function generateExcel(project, divisions) {
       detailed.getCell(dr, 7).value = "";
 
       applyBorderRow(detailed, dr, 1, 6);
+
+      // Light blue fill on the DIVISION column (A) for line item rows
+      const divCell = detailed.getCell(dr, 1);
+      baseCell(divCell);
+      divCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6E4F0" } };
+      divCell.border = thinBorder();
       detailed.getRow(dr).height = 28;
       detailed.getCell(dr, 3).alignment = { wrapText: true, vertical: "top" };
 
