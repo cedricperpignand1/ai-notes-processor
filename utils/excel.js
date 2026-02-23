@@ -210,9 +210,9 @@ export async function generateExcel(project, divisions) {
   cover.getCell("B45").font = { name: "Calibri", size: 11, italic: true, color: { argb: "FFFFFFFF" } };
   cover.getCell("B45").alignment = { horizontal: "center", vertical: "middle" };
 
-  // Logo — bottom right of cover (rows 48–54, cols H–K)
+  // Logo — bottom right of cover
   if (logoId !== null) {
-    cover.addImage(logoId, { tl: { col: 7, row: 47 }, br: { col: 11, row: 53 } });
+    cover.addImage(logoId, { tl: { col: 8, row: 48 }, ext: { width: 180, height: 56 }, editAs: 'oneCell' });
   }
 
   // ───────────────────────── SUMMARY ─────────────────────────
@@ -227,7 +227,7 @@ export async function generateExcel(project, divisions) {
 
   headerBar(summary, 1, 1, 6, "SUMMARY SOV");
   if (logoId !== null) {
-    summary.addImage(logoId, { tl: { col: 4, row: 0 }, br: { col: 6, row: 3 } });
+    summary.addImage(logoId, { tl: { col: 4, row: 0 }, ext: { width: 160, height: 50 }, editAs: 'oneCell' });
   }
   darkHeaderRow(summary, 4, ["DIVISION", "TRADE CODE DESCRIPTIONS", "COMMENTS", "QTY", "RATE", "SUB TOTAL"]);
 
@@ -288,7 +288,7 @@ export async function generateExcel(project, divisions) {
 
   headerBar(genReq, 1, 1, 5, "GENERAL CONDITIONS SUMMARY");
   if (logoId !== null) {
-    genReq.addImage(logoId, { tl: { col: 3, row: 0 }, br: { col: 5, row: 3 } });
+    genReq.addImage(logoId, { tl: { col: 3, row: 0 }, ext: { width: 160, height: 50 }, editAs: 'oneCell' });
   }
   darkHeaderRow(genReq, 4, ["DESCRIPTION", "COMMENTS", "QTY", "RATE", "SUB"]);
 
@@ -331,7 +331,7 @@ export async function generateExcel(project, divisions) {
   detailed.getCell("A1").font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF2F75B5" } };
 
   if (logoId !== null) {
-    detailed.addImage(logoId, { tl: { col: 5, row: 0 }, br: { col: 7, row: 3 } });
+    detailed.addImage(logoId, { tl: { col: 5, row: 0 }, ext: { width: 160, height: 50 }, editAs: 'oneCell' });
   }
 
   darkHeaderRow(detailed, 4, ["DIVISION", "LINE ITEM", "DESCRIPTION", "QTY", "RATE", "SUB TOTAL", "DIV TOTAL"]);
@@ -457,7 +457,7 @@ export async function generateExcel(project, divisions) {
   alt.getColumn(2).width = 22;
   headerBar(alt, 1, 1, 2, "ALT / NOTES / EXCLUSIONS");
   if (logoId !== null) {
-    alt.addImage(logoId, { tl: { col: 1, row: 0 }, br: { col: 2, row: 3 } });
+    alt.addImage(logoId, { tl: { col: 1, row: 0 }, ext: { width: 160, height: 50 }, editAs: 'oneCell' });
   }
 
   alt.getCell("A4").value =
